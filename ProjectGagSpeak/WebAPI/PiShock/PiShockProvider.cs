@@ -247,6 +247,41 @@ public sealed class PiShockProvider : DisposableMediatorSubscriberBase
         {
             try
             {
+                // This is messy and slow.
+                // Openshock is working on permissions per API token. In the future permissions should be handled per token
+                // and share codes should not be used at all.
+                var permissions = await GetPermissionsFromCode(shareCode);
+                
+                if (!permissions.AllowShocks && opCode == 0)
+                {
+                    Logger.LogDebug("Shock not allowed by share code. Not executing operation.");
+                    return;
+                }
+
+                if (!permissions.AllowVibrations && opCode == 1)
+                {
+                    Logger.LogDebug("Vibration not allowed by share code. Not executing operation.");
+                    return;
+                }
+
+                if (!permissions.AllowBeeps && opCode == 2)
+                {
+                    Logger.LogDebug("Beep not allowed by share code. Not executing operation.");
+                    return;
+                }
+
+                if (permissions.MaxIntensity < intensity)
+                {
+                    Logger.LogDebug("Intensity higher than allowed by share code ({intensity}). Setting to maximum ({maxintensity}).", intensity, permissions.MaxIntensity);
+                    intensity = permissions.MaxIntensity;
+                }
+
+                if (permissions.MaxDuration < duration)
+                {
+                    Logger.LogDebug("Duration higher than allowed by share code ({duration}). Setting to maximum ({maxduration}).", duration, permissions.MaxDuration);
+                    duration = permissions.MaxDuration;
+                }
+                
                 string shockMode = opCode switch // This can probably be made an enum or something a little cleaner.
                 {
                     0 => "Shock",
