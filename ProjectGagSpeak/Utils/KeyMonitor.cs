@@ -1,5 +1,4 @@
 using PInvoke;
-using System.Windows.Forms;
 
 namespace GagSpeak.Utils;
 
@@ -29,6 +28,6 @@ public static class KeyMonitor
 
     public static bool RightMouseButtonDown() => IsKeyPressed(0x02);
     public static bool MiddleMouseButtonDown() => IsKeyPressed(0x04);
-    public static bool IsBothMouseButtonsPressed() => IsKeyPressed((int)Keys.LButton) && IsKeyPressed((int)Keys.RButton);
+    public static bool IsBothMouseButtonsPressed() => IsKeyPressed(0x01) && IsKeyPressed(0x02);
 
 }

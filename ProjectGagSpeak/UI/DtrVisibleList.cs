@@ -5,7 +5,6 @@ using Dalamud.Interface.Utility.Raii;
 using GagSpeak.Services.Mediator;
 using GagSpeak.UpdateMonitoring;
 using ImGuiNET;
-using Microsoft.VisualBasic.ApplicationServices;
 using OtterGui;
 using System.Numerics;
 

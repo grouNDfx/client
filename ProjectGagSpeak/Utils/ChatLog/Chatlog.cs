@@ -13,7 +13,6 @@ using OtterGui.Text;
 using System;
 using System.Globalization;
 using System.Numerics;
-using System.Windows.Forms;
 
 namespace GagSpeak.Utils.ChatLog;
 // an instance of a chatlog.

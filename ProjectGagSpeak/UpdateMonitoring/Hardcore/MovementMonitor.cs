@@ -18,7 +18,6 @@ using GagSpeak.WebAPI;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
 using XivControl = FFXIVClientStructs.FFXIV.Client.Game.Control;
 
 namespace GagSpeak.UpdateMonitoring;
@@ -346,6 +345,15 @@ public class MovementMonitor : DisposableMediatorSubscriberBase
         });
     }
 
+    public enum KeyCodes
+    {
+        W = 0x57, // key code for 'W'
+        A = 0x41, //  key code for 'A'
+        S = 0x53, // key code for 'S'
+        D = 0x44,  // key code for 'D'
+        Space = 0x20 // key code for 'Space'
+    }
+    
     private void ResetCancelledMoveKeys()
     {
         // if we had any keys canceled
@@ -356,8 +364,9 @@ public class MovementMonitor : DisposableMediatorSubscriberBase
             // and restore the state of the virtual keys
             MoveKeys.Each(x =>
             {
+                
                 // the action to execute for each key
-                if (KeyMonitor.IsKeyPressed((int)(Keys)x))
+                if (KeyMonitor.IsKeyPressed((int)x))
                 {
                     SetKeyState(x, 3);
                 }
