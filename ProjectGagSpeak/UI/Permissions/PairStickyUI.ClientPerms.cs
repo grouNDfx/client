@@ -10,6 +10,7 @@ using GagspeakAPI.Extensions;
 using ImGuiNET;
 using OtterGui.Text;
 using System.Security;
+using GagSpeak.GagspeakConfiguration.Configurations;
 
 namespace GagSpeak.UI.Permissions;
 

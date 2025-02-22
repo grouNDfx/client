@@ -5,6 +5,7 @@ using GagspeakAPI.Data.Struct;
 using GagspeakAPI.Routes;
 using System.Net;
 using System.Text.Json;
+using GagSpeak.GagspeakConfiguration.Models;
 using SysJsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace GagSpeak.WebAPI;
@@ -79,43 +80,101 @@ public sealed class PiShockProvider : DisposableMediatorSubscriberBase
 
     public async Task<PiShockPermissions> GetPermissionsFromCode(string shareCode)
     {
-        try
+        ShockService shockService = _mainConfig.Current.ShockService;
+        if (shockService == ShockService.PiShock)
         {
-            var jsonContent = CreateGetInfoContent(shareCode);
-
-            Logger.LogTrace("PiShock Request Info URI Firing: {piShockUri}", GagspeakPiShock.GetInfoPath());
-            var response = await _httpClient.PostAsync(GagspeakPiShock.GetInfoPath(), jsonContent).ConfigureAwait(false);
-
-            if (response.StatusCode == HttpStatusCode.OK)
+            try
             {
-                Logger.LogTrace("PiShock Request Info Response: {response}", response);
-                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                var jsonDocument = JsonDocument.Parse(content);
-                var root = jsonDocument.RootElement;
+                var jsonContent = CreateGetInfoContent(shareCode);
 
-                int maxIntensity = root.GetProperty("maxIntensity").GetInt32();
-                int maxShockDuration = root.GetProperty("maxDuration").GetInt32();
+                Logger.LogTrace("PiShock Request Info URI Firing: {piShockUri}", GagspeakPiShock.GetInfoPath());
+                var response = await _httpClient.PostAsync(GagspeakPiShock.GetInfoPath(), jsonContent).ConfigureAwait(false);
 
-                Logger.LogTrace("Obtaining boolean values by passing dummy requests to share code");
-                var result = await ConstructPermissionObject(shareCode, maxIntensity, maxShockDuration);
-                Logger.LogTrace("PiShock Permissions obtained: {result}", result);
-                return result;
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    Logger.LogTrace("PiShock Request Info Response: {response}", response);
+                    var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var jsonDocument = JsonDocument.Parse(content);
+                    var root = jsonDocument.RootElement;
+
+                    int maxIntensity = root.GetProperty("maxIntensity").GetInt32();
+                    int maxShockDuration = root.GetProperty("maxDuration").GetInt32();
+
+                    Logger.LogTrace("Obtaining boolean values by passing dummy requests to share code");
+                    var result = await ConstructPermissionObject(shareCode, maxIntensity, maxShockDuration);
+                    Logger.LogTrace("PiShock Permissions obtained: {result}", result);
+                    return result;
+                }
+                else if (response.StatusCode == HttpStatusCode.InternalServerError)
+                {
+                    Logger.LogWarning("The Credentials for your API Key and Username do not match any profile in PiShock");
+                    return new();
+                }
+                else
+                {
+                    Logger.LogError("The ShareCode for this profile does not exist, or this is a simple error 404: {statusCode}", response.StatusCode);
+                    return new();
+                }
             }
-            else if (response.StatusCode == HttpStatusCode.InternalServerError)
+            catch (HttpRequestException ex)
             {
-                Logger.LogWarning("The Credentials for your API Key and Username do not match any profile in PiShock");
-                return new();
-            }
-            else
-            {
-                Logger.LogError("The ShareCode for this profile does not exist, or this is a simple error 404: {statusCode}", response.StatusCode);
-                return new();
+                Logger.LogError(ex, "Error getting PiShock permissions from share code");
+                return new PiShockPermissions();
             }
         }
-        catch (HttpRequestException ex)
+        else
         {
-            Logger.LogError(ex, "Error getting PiShock permissions from share code");
-            return new PiShockPermissions();
+            try
+            {
+                var getInfoPath = GagspeakOpenShock.GetInfoPath(shareCode);
+                Logger.LogTrace("OpenShock Request Info URI Firing {openshockUri}", getInfoPath);
+                var response = await _httpClient.GetAsync(getInfoPath).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var jsonDocument = JsonDocument.Parse(content);
+                    var root = jsonDocument.RootElement;
+
+                    const int
+                        hubIndex =
+                            0; // Openshock supports multiple physical hubs, but to reduce complexity, we're only using the first one.
+                    const int
+                        shockerIndex =
+                            0; // Openshock supports multiple shockers per hub, but to reduce complexity, we're only using the first one.
+
+                    int maxIntensity =
+                        root.GetProperty("data").GetProperty("devices")[hubIndex].GetProperty("shockers")[shockerIndex]
+                            .GetProperty("limits").GetProperty("intensity").GetInt32();
+                    int maxShockDuration =
+                        root.GetProperty("data").GetProperty("devices")[hubIndex].GetProperty("shockers")[shockerIndex]
+                            .GetProperty("limits").GetProperty("duration").GetInt32();
+
+                    // Openshock permissions are fetched via the API at the same time as the max intensity and duration
+                    bool allowShocks =
+                        root.GetProperty("data").GetProperty("devices")[hubIndex].GetProperty("shockers")[shockerIndex]
+                            .GetProperty("permissions").GetProperty("shock").GetBoolean();
+                    bool allowVibrations =
+                        root.GetProperty("data").GetProperty("devices")[hubIndex].GetProperty("shockers")[shockerIndex]
+                            .GetProperty("permissions").GetProperty("vibrate").GetBoolean();
+                    bool allowBeeps =
+                        root.GetProperty("data").GetProperty("devices")[hubIndex].GetProperty("shockers")[shockerIndex]
+                            .GetProperty("permissions").GetProperty("sound").GetBoolean();
+                    
+                    var result = new PiShockPermissions() { AllowShocks = allowShocks, AllowVibrations = allowVibrations, AllowBeeps = allowBeeps, MaxIntensity = maxIntensity, MaxDuration = maxShockDuration };
+                    Logger.LogTrace("Openshock Permissions Obtained: {result}", result);
+                    return result;
+                }
+                else
+                {
+                    Logger.LogError("The share code is invalid or this is a simple error 404: {statusCode}", response.StatusCode);
+                    return new();
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.LogError(ex, "Error getting OpenShock permissions from share code");
+                return new PiShockPermissions();
+            }
         }
     }
 
@@ -160,22 +219,82 @@ public sealed class PiShockProvider : DisposableMediatorSubscriberBase
 
     public async void ExecuteOperation(string shareCode, int opCode, int intensity, int duration)
     {
-        try
+        ShockService shockService = _mainConfig.Current.ShockService;
+        if (shockService == ShockService.PiShock)
         {
-            var jsonContent = CreateExecuteOperationContent(shareCode, opCode, intensity, duration);
-            var response = await _httpClient.PostAsync(GagspeakPiShock.ExecuteOperationPath(), jsonContent).ConfigureAwait(false);
-
-            if (response.StatusCode != HttpStatusCode.OK)
+            try
             {
-                Logger.LogError("Error executing operation on PiShock. Status returned: " + response.StatusCode);
-                return;
+                var jsonContent = CreateExecuteOperationContent(shareCode, opCode, intensity, duration);
+                var response = await _httpClient.PostAsync(GagspeakPiShock.ExecuteOperationPath(), jsonContent)
+                                                .ConfigureAwait(false);
+
+                if (response.StatusCode != HttpStatusCode.OK)
+                {
+                    Logger.LogError("Error executing operation on PiShock. Status returned: " + response.StatusCode);
+                    return;
+                }
+
+                var contentStr = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                Logger.LogDebug("PiShock Request Sent to Shock Collar Successfully! Content returned was:\n" +
+                                contentStr);
             }
-            var contentStr = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            Logger.LogDebug("PiShock Request Sent to Shock Collar Successfully! Content returned was:\n" + contentStr);
+            catch (HttpRequestException ex)
+            {
+                Logger.LogError(ex, "Error executing operation on PiShock");
+            }
         }
-        catch (HttpRequestException ex)
+        else if (shockService == ShockService.OpenShock)
         {
-            Logger.LogError(ex, "Error executing operation on PiShock");
+            try
+            {
+                string shockMode = opCode switch // This can probably be made an enum or something a little cleaner.
+                {
+                    0 => "Shock",
+                    1 => "Vibrate",
+                    2 => "Sound",
+                    _ => "None"
+                };
+                
+                StringContent jsonContent = new(SysJsonSerializer.Serialize(new Dictionary<string, object>
+                {
+                    { "shocks", new List<Dictionary<string, object>>
+                        {
+                            new Dictionary<string, object>
+                            {
+                                { "id", "8dc6755e-0f39-494e-8bb4-22377d469e3b" },
+                                { "type", shockMode },
+                                { "intensity", intensity },
+                                { "duration", duration },
+                                { "exclusive", true }
+                            }
+                        }
+                    },
+                    { "customName", "GagSpeakProvider"}
+                }), Encoding.UTF8, "application/json");
+
+                using (var request = new HttpRequestMessage(HttpMethod.Post, GagspeakOpenShock.ExecuteOperationPath()))
+                {
+                    request.Content = jsonContent;
+                    request.Headers.Add("Openshocktoken", _mainConfig.Current.PiShockApiKey);
+        
+                    HttpResponseMessage response = _httpClient.SendAsync(request).Result;
+
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        Logger.LogError("Error executing operation on OpenShock. Status returned: {status}\nContent: {data}", response.StatusCode, jsonContent);
+                    }
+                    else
+                    {
+                        var contentStr = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        Logger.LogDebug("OpenShock Request Sent to Shock Collar Successfully! Content returned was:\n" +
+                                        contentStr);
+                    }
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.LogError(ex, "Error executing operation on OpenShock");
+            }
         }
     }
 }

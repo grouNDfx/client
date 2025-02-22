@@ -491,6 +491,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText(GSLoc.Settings.MainOptions.SpatialAudioActiveTT);
 
         ImGui.Spacing();
+        
+        _uiShared.DrawCombo("Shock Collar Service", 250 * ImGuiHelpers.GlobalScale, (ShockService[])Enum.GetValues(typeof(ShockService)), (service) => service.ToString(), (service) =>
+        {
+            _clientConfigs.GagspeakConfig.ShockService = service;
+            _clientConfigs.Save();
+        }, _clientConfigs.GagspeakConfig.ShockService);
 
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
         if (ImGui.InputText("PiShock API Key", ref piShockApiKey, 100, ImGuiInputTextFlags.EnterReturnsTrue))

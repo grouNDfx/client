@@ -70,6 +70,8 @@ public class GagspeakConfig : IGagspeakConfiguration
     public bool VibeServerAutoConnect { get; set; } = false;                    // if we should auto-connect to the vibe server
 
     // GLOBAL HARDCORE SETTINGS. (maybe make it its own file if it gets too rediculous but yeah.
+
+    public ShockService ShockService { get; set; } = ShockService.PiShock; // Shock collar settings.
     public string PiShockApiKey { get; set; } = ""; // PiShock Settings.
     public string PiShockUsername { get; set; } = ""; // PiShock Settings.
     public BlindfoldType BlindfoldStyle { get; set; } = BlindfoldType.Sensual; // Blindfold Format
