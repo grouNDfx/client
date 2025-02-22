@@ -5,6 +5,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using GagSpeak.Localization;
 using Lumina.Excel.Sheets;
+using System.Windows.Forms;
 
 namespace GagSpeak.Utils;
 

@@ -14,7 +14,6 @@
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
         <Platforms>AnyCPU</Platforms>
         <NoWarn>MSB3270</NoWarn>
-        <GenerateErrorForMissingTargetingPacks>false</GenerateErrorForMissingTargetingPacks>
     </PropertyGroup>
 
     
@@ -32,9 +31,7 @@
     
     <!--Dalamud Plugin Bootstrap Targets brought into .csproj-->
     <PropertyGroup>
-        <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-        <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.xlcore/dalamud/Hooks/dev/</DalamudLibPath>
-        <DalamudLibPath Condition="$(DALAMUD_HOME) != ''">$(DALAMUD_HOME)/</DalamudLibPath>
+        <DalamudLibPath>$(APPDATA)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
         <OutputType>Library</OutputType>
     </PropertyGroup>
     <ItemGroup>
@@ -47,7 +44,6 @@
       <Compile Include="UI\Components\Combos\.GlamourerCombos\CustomFilterComboColor.cs" />
       <Compile Include="UI\Components\Combos\.GlamourerCombos\GameColorCombo.cs" />
       <Compile Include="UI\Components\Combos\.GlamourerCombos\GameItemCombo.cs" />
-      <Compile Remove="WebAPI\OpenShock\OpenShockProvider.cs" />
     </ItemGroup>
 
     <!--Other DLL's for dalamud supporting module/components-->
@@ -106,9 +102,7 @@
     
     <!--Include Dalamud Libraries for dev hooks-->
     <PropertyGroup>
-        <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-        <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.xlcore/dalamud/Hooks/dev/</DalamudLibPath>
-        <DalamudLibPath Condition="$(DALAMUD_HOME) != ''">$(DALAMUD_HOME)/</DalamudLibPath>
+        <DalamudLibPath>$(APPDATA)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
         <OutputType>Library</OutputType>
     </PropertyGroup>
 
